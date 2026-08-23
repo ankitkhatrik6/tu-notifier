@@ -1,0 +1,23 @@
+CREATE TABLE IF NOT EXISTS guilds (
+  guild_id VARCHAR(64) PRIMARY KEY,
+  notification_channel_id VARCHAR(64),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS subscriptions (
+  id SERIAL PRIMARY KEY,
+  guild_id VARCHAR(64) NOT NULL,
+  source VARCHAR(32) NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(guild_id, source)
+);
+
+CREATE INDEX IF NOT EXISTS idx_subscriptions_source ON subscriptions(source);
+CREATE INDEX IF NOT EXISTS idx_subscriptions_guild_id ON subscriptions(guild_id);
+
+CREATE TABLE IF NOT EXISTS last_notices (
+  source VARCHAR(32) PRIMARY KEY,
+  notice_id VARCHAR(128) NOT NULL,
+  checked_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
