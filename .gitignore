@@ -3,8 +3,7 @@ node_modules/
 coverage/
 .DS_Store
 *.log
-.env*
-!.env.example
+.env
 
 # Local Database
 .tu_bot_data.json
