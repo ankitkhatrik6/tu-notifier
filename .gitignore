@@ -5,3 +5,14 @@ coverage/
 *.log
 .env*
 !.env.example
+
+# Local Database
+.tu_bot_data.json
+
+# Build Cache
+tsconfig.tsbuildinfo
+
+# Scratch scripts
+test.ts
+push.sh
+rename.js
