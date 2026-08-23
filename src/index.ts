@@ -7,10 +7,15 @@ import {
   Message
 } from 'discord.js';
 import http from 'http';
+import dns from 'dns';
 import { config } from './config';
 import { getDatabase } from './database/database';
 import { noticeCheckerService } from './services/noticeChecker';
 import { createErrorEmbed } from './utils/embeds';
+
+// Force Node.js to use IPv4 for DNS resolution. 
+// This fixes silent hangs on cloud providers (like Render) that have broken IPv6 outbound routing.
+dns.setDefaultResultOrder('ipv4first');
 
 // Command handlers
 import { handleHelpCommand } from './commands/help';
