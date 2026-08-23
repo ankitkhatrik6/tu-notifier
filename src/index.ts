@@ -41,7 +41,8 @@ export const client = new Client({
     // Explicitly force IPv4 for the Discord API to fix silent hangs on Render
     agent: new Agent({
       connect: { lookup: (hostname, options, callback) => {
-        dns.lookup(hostname, { family: 4 }, callback);
+        // Must pass original options so 'all: true' is preserved if undici requests it!
+        dns.lookup(hostname, { ...options, family: 4 }, callback);
       }}
     })
   }
