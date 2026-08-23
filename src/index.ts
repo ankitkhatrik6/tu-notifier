@@ -27,6 +27,8 @@ import { handleUnsubscribeCommand } from './commands/unsubscribe';
 import { handleSubscriptionsCommand } from './commands/subscriptions';
 import { handleChannelCommand } from './commands/channel';
 
+import { Agent } from 'undici';
+
 export const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
@@ -35,6 +37,14 @@ export const client = new Client({
     GatewayIntentBits.DirectMessages,
   ],
   partials: [Partials.Channel, Partials.Message],
+  rest: {
+    // Explicitly force IPv4 for the Discord API to fix silent hangs on Render
+    agent: new Agent({
+      connect: { lookup: (hostname, options, callback) => {
+        dns.lookup(hostname, { family: 4 }, callback);
+      }}
+    })
+  }
 });
 
 /**
