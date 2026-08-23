@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="logo.png" alt="TU Notifier Logo" width="150" />
+  <img src="banner.png" alt="TU Notifier Banner" width="100%" />
 </div>
 
 # ✦ TU Notifier ✦

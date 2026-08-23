@@ -11,8 +11,8 @@ export interface BotConfig {
 }
 
 export const config: BotConfig = {
-  token: process.env.DISCORD_TOKEN || '',
-  databaseUrl: process.env.DATABASE_URL || '',
+  token: (process.env.DISCORD_TOKEN || '').trim(),
+  databaseUrl: (process.env.DATABASE_URL || '').trim(),
   checkIntervalMinutes: Math.max(1, parseInt(process.env.CHECK_INTERVAL_MINUTES || '5', 10) || 5),
   prefix: '!tu',
 };
