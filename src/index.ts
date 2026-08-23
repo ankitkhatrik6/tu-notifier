@@ -157,6 +157,16 @@ export async function startBot(): Promise<void> {
   console.log('🎓 Tribhuvan University (TU) Notice Discord Bot v1.0.0');
   console.log('---------------------------------------------------------');
 
+  // Start a lightweight HTTP server to satisfy cloud hosting health checks (e.g. Render, Koyeb)
+  // MUST run before Discord/DB so Render detects the port immediately!
+  const port = process.env.PORT || 8080;
+  http.createServer((req, res) => {
+    res.writeHead(200);
+    res.end('TU Notifier is online and running!');
+  }).listen(port, '0.0.0.0', () => {
+    console.log(`[TU Notifier] 🌐 Web server listening on port ${port} (Ready for Cloud Hosting)`);
+  });
+
   // Initialize Database
   await getDatabase();
 
@@ -168,15 +178,6 @@ export async function startBot(): Promise<void> {
 
   try {
     await client.login(config.token);
-
-    // Start a lightweight HTTP server to satisfy cloud hosting health checks (e.g. Render, Koyeb)
-    const port = process.env.PORT || 8080;
-    http.createServer((req, res) => {
-      res.writeHead(200);
-      res.end('TU Notifier is online and running!');
-    }).listen(port, () => {
-      console.log(`[TU Notifier] 🌐 Web server listening on port ${port} (Ready for Cloud Hosting)`);
-    });
   } catch (err: any) {
     console.error('[TU Notifier] ❌ Failed to login to Discord Gateway:', err.message);
   }
