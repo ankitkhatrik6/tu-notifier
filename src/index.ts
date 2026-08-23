@@ -129,10 +129,7 @@ client.on(Events.MessageCreate, handleMessage);
 
 // --- ADDED FOR DEBUGGING DISCORD.JS CONNECTION ON CLOUD HOSTS ---
 client.on('debug', (info) => {
-  // Only log gateway connection info to avoid spamming the console
-  if (info.includes('Gateway') || info.includes('Heartbeat') || info.includes('Session')) {
-    console.log(`[Discord.js Debug] ${info}`);
-  }
+  console.log(`[Discord.js Debug] ${info}`);
 });
 
 client.once(Events.ClientReady, (readyClient) => {
