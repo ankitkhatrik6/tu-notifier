@@ -44,7 +44,7 @@ export const client = new Client({
         // Must pass original options so 'all: true' is preserved if undici requests it!
         dns.lookup(hostname, { ...options, family: 4 }, callback);
       }}
-    })
+    }) as any
   }
 });
 
@@ -180,7 +180,7 @@ export async function startBot(): Promise<void> {
 
   // Start a lightweight HTTP server to satisfy cloud hosting health checks (e.g. Render, Koyeb)
   // MUST run before Discord/DB so Render detects the port immediately!
-  const port = process.env.PORT || 8080;
+  const port = process.env.PORT ? parseInt(process.env.PORT, 10) : 8080;
   http.createServer((req, res) => {
     res.writeHead(200);
     res.end('TU Notifier is online and running!');
