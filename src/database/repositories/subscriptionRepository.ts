@@ -38,7 +38,7 @@ export class SubscriptionRepository {
   }
 
   /**
-   * Subscribes a guild to all supported TU sources (iost, fohss, ioe, iom, iaas, iof, foe, fol)
+   * Subscribes a guild to all supported TU sources (iost, fohss, ioe, ac, iaas, iof, foe, fol)
    */
   async subscribeAll(guildId: string): Promise<{ added: string[]; alreadyExisted: string[] }> {
     const existing = await this.getGuildSubscriptions(guildId);

@@ -12,7 +12,7 @@ export { SOURCES, SOURCE_METADATA, isNoticeSource, isValidSource };
 export type { NoticeSource, SourceQuery, SourceMeta };
 
 /**
- * All valid source keys in tu-scraper (iost, fohss, ioe, iom, iaas, iof, foe, fol)
+ * All valid source keys in tu-scraper (iost, fohss, ioe, ac, iaas, iof, foe, fol)
  */
 export const SUPPORTED_FACULTY_KEYS = SOURCES as readonly NoticeSource[];
 
@@ -52,7 +52,7 @@ export function getFacultyColor(sourceKey?: string): number {
       return 0x2563eb; // Blue
     case 'ioe':
       return 0xd97706; // Amber
-    case 'iom':
+    case 'ac':
       return 0x059669; // Emerald
     case 'fohss':
       return 0x9333ea; // Purple
