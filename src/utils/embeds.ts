@@ -19,10 +19,11 @@ import {
  * often puts the faculty name in the title field and the real title in content.
  */
 function getNoticeDisplayTitle(notice: Notice | NoticeDetail): string {
-  if (notice.content && notice.content !== 'undefined') {
+  const content = 'content' in notice ? notice.content : undefined;
+  if (content && content !== 'undefined') {
     // Content often looks like "Real Title 2026-08-21 Real Title"
-    const parts = notice.content.split(/\s*\d{4}-\d{2}-\d{2}\s*/);
-    let title = parts[0] && parts[0].trim().length > 0 ? parts[0].trim() : notice.content.trim();
+    const parts = content.split(/\s*\d{4}-\d{2}-\d{2}\s*/);
+    let title = parts[0] && parts[0].trim().length > 0 ? parts[0].trim() : content.trim();
     
     // Ensure it's not too long for Discord embed limits
     if (title.length > 250) {
