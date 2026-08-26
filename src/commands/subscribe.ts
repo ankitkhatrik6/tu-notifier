@@ -61,15 +61,34 @@ export async function handleSubscribeCommand(message: Message, args: string[]): 
 
   const rawInput = normalizeSourceInput(args[0]);
 
+  let channelId: string | undefined;
+  if (args[1]) {
+    channelId = args[1].replace(/<|#|>/g, '');
+    const channel = await message.guild.channels.fetch(channelId).catch(() => null);
+    if (!channel || !channel.isTextBased()) {
+      await message.reply({
+        embeds: [
+          createErrorEmbed(
+            'Invalid Channel',
+            `The channel <#${channelId}> is invalid or not a text channel.`
+          ),
+        ],
+      });
+      return;
+    }
+  }
+
   // Check channel reminder
   const guildData = await guildRepository.getGuild(message.guild.id);
-  const channelReminder = !guildData?.notification_channel_id
+  const channelReminder = channelId
+    ? `\n\n📡 Notifications for this subscription will be delivered to <#${channelId}>.`
+    : !guildData?.notification_channel_id
     ? `\n\n⚠️ **Action Required:** No notification channel is set for this server yet. Please run \`!tu channel\` in your desired announcement channel to receive updates!`
-    : `\n\n📡 Notifications will be delivered to <#${guildData.notification_channel_id}>.`;
+    : `\n\n📡 Notifications will be delivered to the default channel <#${guildData.notification_channel_id}>.`;
 
   // Case 1: Subscribe ALL
   if (rawInput === 'all') {
-    const { added, alreadyExisted } = await subscriptionRepository.subscribeAll(message.guild.id);
+    const { added, alreadyExisted } = await subscriptionRepository.subscribeAll(message.guild.id, channelId);
 
     if (added.length === 0) {
       await message.reply({
@@ -113,7 +132,7 @@ export async function handleSubscribeCommand(message: Message, args: string[]): 
   }
 
   const meta = getFacultyMeta(rawInput)!;
-  const result = await subscriptionRepository.addSubscription(message.guild.id, rawInput);
+  const result = await subscriptionRepository.addSubscription(message.guild.id, rawInput, channelId);
 
   if (result.alreadyExists) {
     await message.reply({
