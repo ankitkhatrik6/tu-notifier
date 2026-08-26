@@ -44,9 +44,20 @@ export class PostgresDriver implements DatabaseDriver {
           id SERIAL PRIMARY KEY,
           guild_id VARCHAR(64) NOT NULL,
           source VARCHAR(32) NOT NULL,
+          channel_id VARCHAR(64),
           created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
           UNIQUE(guild_id, source)
         );
+
+        DO $$
+        BEGIN
+          BEGIN
+            ALTER TABLE subscriptions ADD COLUMN channel_id VARCHAR(64);
+          EXCEPTION
+            WHEN duplicate_column THEN null;
+          END;
+        END $$;
+
 
         CREATE INDEX IF NOT EXISTS idx_subscriptions_source ON subscriptions(source);
         CREATE INDEX IF NOT EXISTS idx_subscriptions_guild_id ON subscriptions(guild_id);
@@ -81,7 +92,7 @@ export class EmbeddedDriver implements DatabaseDriver {
   private filePath: string;
   private data: {
     guilds: Record<string, { guild_id: string; notification_channel_id?: string; created_at: string; updated_at: string }>;
-    subscriptions: Array<{ guild_id: string; source: string; created_at: string }>;
+    subscriptions: Array<{ guild_id: string; source: string; channel_id?: string; created_at: string }>;
     last_notices: Record<string, { source: string; notice_id: string; checked_at: string }>;
   };
 
@@ -150,7 +161,7 @@ export class EmbeddedDriver implements DatabaseDriver {
     if (text.includes('SELECT source FROM subscriptions WHERE guild_id')) {
       const sources = this.data.subscriptions
         .filter((s) => s.guild_id === params[0])
-        .map((s) => ({ source: s.source }));
+        .map((s) => ({ source: s.source, channel_id: s.channel_id }));
       return { rows: sources as unknown as T[] };
     }
 
@@ -159,24 +170,27 @@ export class EmbeddedDriver implements DatabaseDriver {
       return { rows: unique as unknown as T[] };
     }
 
-    if (text.includes('SELECT guild_id FROM subscriptions WHERE source')) {
+    if (text.includes('SELECT guild_id, channel_id FROM subscriptions WHERE source') || text.includes('SELECT guild_id FROM subscriptions WHERE source')) {
       const guilds = this.data.subscriptions
         .filter((s) => s.source === params[0])
-        .map((s) => ({ guild_id: s.guild_id }));
+        .map((s) => ({ guild_id: s.guild_id, channel_id: s.channel_id || null }));
       return { rows: guilds as unknown as T[] };
     }
 
     if (text.includes('INSERT INTO subscriptions')) {
-      const [guild_id, source] = params;
-      const exists = this.data.subscriptions.some((s) => s.guild_id === guild_id && s.source === source);
-      if (!exists) {
+      const [guild_id, source, channel_id] = params;
+      const index = this.data.subscriptions.findIndex((s) => s.guild_id === guild_id && s.source === source);
+      if (index === -1) {
         this.data.subscriptions.push({
           guild_id,
           source,
+          channel_id,
           created_at: new Date().toISOString(),
         });
-        this.persist();
+      } else {
+        this.data.subscriptions[index].channel_id = channel_id;
       }
+      this.persist();
       return { rows: [] };
     }
 
