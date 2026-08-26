@@ -112,7 +112,7 @@ export async function handleMessage(message: Message): Promise<void> {
 
       case 'channel':
       case 'setchannel':
-        await handleChannelCommand(message);
+        await handleChannelCommand(message, args);
         break;
 
       default:

@@ -1,8 +1,10 @@
 import { Message, PermissionsBitField, TextChannel } from 'discord.js';
 import { guildRepository } from '../database/repositories/guildRepository';
+import { subscriptionRepository } from '../database/repositories/subscriptionRepository';
 import { createSuccessEmbed, createErrorEmbed, createWarningEmbed } from '../utils/embeds';
+import { isNoticeSource, normalizeSourceInput, getFacultyMeta, SOURCES } from '../utils/faculties';
 
-export async function handleChannelCommand(message: Message): Promise<void> {
+export async function handleChannelCommand(message: Message, args: string[]): Promise<void> {
   if (!message.guild) {
     await message.reply({
       embeds: [
@@ -64,16 +66,47 @@ export async function handleChannelCommand(message: Message): Promise<void> {
     }
   }
 
-  await guildRepository.setNotificationChannel(message.guild.id, textChannel.id);
-
   const channelName = textChannel.name ? `#${textChannel.name}` : textChannel.id;
+
+  if (args && args[0]) {
+    const rawInput = normalizeSourceInput(args[0]);
+    if (!isNoticeSource(rawInput)) {
+      const list = SOURCES.map((s) => `\`${s}\``).join(', ');
+      await message.reply({
+        embeds: [
+          createErrorEmbed(
+            'Invalid Faculty Identifier',
+            `\`${args[0]}\` is not a valid TU faculty source.\n\n` +
+            `**Supported options:** ${list}`
+          ),
+        ],
+      });
+      return;
+    }
+
+    const meta = getFacultyMeta(rawInput)!;
+    await subscriptionRepository.addSubscription(message.guild.id, rawInput, textChannel.id);
+
+    await message.reply({
+      embeds: [
+        createSuccessEmbed(
+          `Notification Channel Set for ${meta.code}`,
+          `✅ Notifications for **${meta.code} — ${meta.name}** will now be routed specifically to **${channelName}** (<#${textChannel.id}>).`
+        ),
+      ],
+    });
+    return;
+  }
+
+  await guildRepository.setNotificationChannel(message.guild.id, textChannel.id);
 
   await message.reply({
     embeds: [
       createSuccessEmbed(
-        'Notification Channel Configured',
-        `✅ TU notifications will now be sent to **${channelName}** (<#${textChannel.id}>).\n\n` +
-        `Make sure you have subscribed to at least one faculty with \`!tu subscribe <source>\` or \`!tu subscribe all\`!`
+        'Default Notification Channel Configured',
+        `✅ Default TU notifications will now be sent to **${channelName}** (<#${textChannel.id}>).\n\n` +
+        `Make sure you have subscribed to at least one faculty with \`!tu subscribe <source>\` or \`!tu subscribe all\`!\n` +
+        `*(You can also set channels for specific faculties via \`!tu channel <source>\`)*`
       ),
     ],
   });
