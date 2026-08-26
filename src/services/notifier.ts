@@ -6,31 +6,37 @@ import { getFacultyMeta } from '../utils/faculties';
 
 export class NotifierService {
   /**
-   * Dispatches a new notice notification to a list of guild IDs
+   * Dispatches a new notice notification to a list of guilds
    */
-  async notifyGuilds(client: Client, notice: Notice | NoticeDetail, guildIds: string[]): Promise<number> {
-    if (!guildIds || guildIds.length === 0) {
+  async notifyGuilds(client: Client, notice: Notice | NoticeDetail, guilds: { guild_id: string; channel_id: string | null }[]): Promise<number> {
+    if (!guilds || guilds.length === 0) {
       return 0;
     }
 
     const meta = getFacultyMeta(notice.source);
     const facultyCode = meta ? meta.code : notice.source.toUpperCase();
-    console.log(`[NotifierService] Dispatching new ${facultyCode} notice (ID: ${notice.id}) to ${guildIds.length} subscribed guilds.`);
+    console.log(`[NotifierService] Dispatching new ${facultyCode} notice (ID: ${notice.id}) to ${guilds.length} subscribed guilds.`);
 
     let sentCount = 0;
     const messagePayload = createNoticeEmbed(notice, { isNewNotification: true });
 
-    for (const guildId of guildIds) {
+    for (const { guild_id, channel_id } of guilds) {
       try {
-        const guildData = await guildRepository.getGuild(guildId);
-        if (!guildData?.notification_channel_id) {
-          console.warn(`[NotifierService] Guild ${guildId} is subscribed to ${notice.source} but has no notification channel set.`);
+        let targetChannelId = channel_id;
+        
+        if (!targetChannelId) {
+          const guildData = await guildRepository.getGuild(guild_id);
+          targetChannelId = guildData?.notification_channel_id || null;
+        }
+
+        if (!targetChannelId) {
+          console.warn(`[NotifierService] Guild ${guild_id} is subscribed to ${notice.source} but has no notification channel set.`);
           continue;
         }
 
-        const channel = await client.channels.fetch(guildData.notification_channel_id).catch(() => null);
+        const channel = await client.channels.fetch(targetChannelId).catch(() => null);
         if (!channel || !channel.isTextBased()) {
-          console.warn(`[NotifierService] Notification channel ${guildData.notification_channel_id} in guild ${guildId} not found or not text-based.`);
+          console.warn(`[NotifierService] Notification channel ${targetChannelId} in guild ${guild_id} not found or not text-based.`);
           continue;
         }
 
@@ -40,19 +46,19 @@ export class NotifierService {
         if (textChannel.guild && client.user) {
           const permissions = textChannel.permissionsFor(client.user.id);
           if (permissions && !permissions.has([PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.EmbedLinks])) {
-            console.warn(`[NotifierService] Bot lacks permission to send messages/embeds in channel #${textChannel.name} (${textChannel.id}) for guild ${guildId}.`);
+            console.warn(`[NotifierService] Bot lacks permission to send messages/embeds in channel #${textChannel.name} (${textChannel.id}) for guild ${guild_id}.`);
             continue;
           }
         }
 
-        await textChannel.send(messagePayload);
+        await textChannel.send({ content: '@everyone', ...messagePayload });
         sentCount++;
       } catch (err: any) {
-        console.error(`[NotifierService] Failed to send notification to guild ${guildId}:`, err.message || err);
+        console.error(`[NotifierService] Failed to send notification to guild ${guild_id}:`, err.message || err);
       }
     }
 
-    console.log(`[NotifierService] Successfully delivered notice ${notice.id} to ${sentCount}/${guildIds.length} channels.`);
+    console.log(`[NotifierService] Successfully delivered notice ${notice.id} to ${sentCount}/${guilds.length} channels.`);
     return sentCount;
   }
 }
