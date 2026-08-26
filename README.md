@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="logo.png" alt="TU Notifier Logo" width="150" />
+  <img src="banner.png" alt="TU Notifier Banner" width="150" />
 </div>
 
 # TU Notifier 🎓
@@ -10,7 +10,7 @@ ever a new result, routine, or notice drops. So, I wrote this bot to do exactly 
 It uses my other project [tu-scraper](https://github.com/ankitkhatrik6/tu-scraper) under the hood to scrape all the faculties and push them to Discord.
 
 ## What it does
-- **Real-time updates**: It constantly checks 8 different TU faculties (IOE, IOST, IOM, FOM, etc.) and drops the notice in your discord channel the second it's published.
+- **Real-time updates**: It constantly checks 8 different TU faculties (IOE, IOST, IAAS, FOM, etc.) and drops the notice in your discord channel the second it's published.
 - **Search**: Need an old notice? Just type `!tu search ioe exam` and it'll find it for you.
 - **Read PDFs**: It grabs the PDF links so you don't have to navigate that slow TU portal.
 
