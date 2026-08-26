@@ -104,7 +104,7 @@ export async function handleUnsubscribeCommand(message: Message, args: string[])
 
   const meta = getFacultyMeta(rawInput)!;
 
-  if (!currentSubscriptions.includes(rawInput)) {
+  if (!currentSubscriptions.map(s => s.source).includes(rawInput)) {
     await message.reply({
       embeds: [
         createWarningEmbed(
@@ -127,7 +127,7 @@ export async function handleUnsubscribeCommand(message: Message, args: string[])
         `✅ Successfully removed **${meta.code} — ${meta.name}** from this server's subscriptions.\n\n` +
         `**Remaining Subscriptions (${remaining.length}):**\n` +
         (remaining.length > 0
-          ? remaining.map((s) => `• ${SOURCE_METADATA[s as keyof typeof SOURCE_METADATA]?.code || s.toUpperCase()}`).join(', ')
+          ? remaining.map((s) => `• ${SOURCE_METADATA[s.source as keyof typeof SOURCE_METADATA]?.code || s.source.toUpperCase()}`).join(', ')
           : '_None (All subscriptions cleared)_')
       ),
     ],

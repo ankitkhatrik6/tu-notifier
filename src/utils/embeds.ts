@@ -248,8 +248,8 @@ export function createSearchEmbed(
  */
 export function createSubscriptionsEmbed(
   guildName: string,
-  subscriptions: string[],
-  channelMentionOrText: string
+  subscriptions: { source: string; channelId: string | null }[],
+  defaultChannelText: string
 ): EmbedBuilder {
   const embed = new EmbedBuilder()
     .setColor(subscriptions.length > 0 ? 0x10b981 : 0xf59e0b)
@@ -268,11 +268,13 @@ export function createSubscriptionsEmbed(
   }
 
   const facultyListText = subscriptions
-    .map((source) => {
-      const meta = getFacultyMeta(source);
-      return meta
-        ? `• **${meta.code}** — ${meta.name}`
-        : `• **${source.toUpperCase()}**`;
+    .map((sub) => {
+      const meta = getFacultyMeta(sub.source);
+      const name = meta
+        ? `**${meta.code}** — ${meta.name}`
+        : `**${sub.source.toUpperCase()}**`;
+      const channelLabel = sub.channelId ? ` (in <#${sub.channelId}>)` : '';
+      return `• ${name}${channelLabel}`;
     })
     .join('\n');
 
@@ -280,7 +282,7 @@ export function createSubscriptionsEmbed(
     `**${guildName}** receives automatic notifications for **${subscriptions.length}** TU ${
       subscriptions.length === 1 ? 'source' : 'sources'
     }:\n\n${facultyListText}\n\n` +
-    `**Notification Channel:**\n${channelMentionOrText}`
+    `**Default Notification Channel:**\n${defaultChannelText}`
   );
 
   embed.setFooter({
