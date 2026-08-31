@@ -140,6 +140,17 @@ export async function handleMessage(message: Message): Promise<void> {
   }
 }
 
+import { slashCommandsDefinitions, handleSlashCommand } from './slashCommands';
+
+// Register Discord client events
+client.on(Events.MessageCreate, handleMessage);
+
+// Handle Slash Commands
+client.on(Events.InteractionCreate, async (interaction) => {
+  if (!interaction.isChatInputCommand()) return;
+  await handleSlashCommand(interaction);
+});
+
 // Register Discord client events
 client.on(Events.MessageCreate, handleMessage);
 
@@ -148,19 +159,30 @@ client.on('debug', (info) => {
   console.log(`[Discord.js Debug] ${info}`);
 });
 
-client.once(Events.ClientReady, (readyClient) => {
+client.once(Events.ClientReady, async (readyClient) => {
   console.log(`[TU Notifier] 🤖 Successfully logged in as ${readyClient.user.tag} (${readyClient.user.id})`);
+
+  // Register slash commands globally
+  try {
+    console.log(`[TU Notifier] 🔄 Registering ${slashCommandsDefinitions.length} global slash commands...`);
+    await readyClient.application.commands.set(slashCommandsDefinitions);
+    console.log('[TU Notifier] ✅ Successfully registered slash commands.');
+  } catch (error) {
+    console.error('[TU Notifier] ❌ Failed to register slash commands:', error);
+  }
 
   // Set bot rich presence
   readyClient.user.setPresence({
     status: 'online',
     activities: [
       {
-        name: `${config.prefix} help | TU Notices 🇳🇵`,
+        name: `${config.prefix} help | /help | TU Notices 🇳🇵`,
         type: ActivityType.Watching,
       },
     ],
   });
+
+
 
   // Start background notice polling
   noticeCheckerService.startPolling(readyClient, config.checkIntervalMinutes);

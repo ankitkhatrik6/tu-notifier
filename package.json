@@ -6,7 +6,8 @@
     "start": "tsx src/index.ts",
     "bot": "tsx src/index.ts",
     "dev": "tsx watch src/index.ts",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "build": "tsc"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
