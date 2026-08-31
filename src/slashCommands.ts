@@ -98,6 +98,63 @@ export const slashCommandsDefinitions = [
         .addChoices(
           ...SOURCES.map(s => ({ name: SOURCE_METADATA[s].code, value: s }))
         )
+    ),
+
+  new SlashCommandBuilder()
+    .setName('help')
+    .setDescription('Show help information about TU Notifier'),
+
+  new SlashCommandBuilder()
+    .setName('faculties')
+    .setDescription('List all supported TU faculties and sources'),
+
+  new SlashCommandBuilder()
+    .setName('latest')
+    .setDescription('Fetch the latest notice for a specific faculty')
+    .addStringOption(option =>
+      option.setName('faculty')
+        .setDescription('The faculty to check')
+        .setRequired(true)
+        .addChoices(
+          ...SOURCES.map(s => ({ name: SOURCE_METADATA[s].code, value: s }))
+        )
+    ),
+
+  new SlashCommandBuilder()
+    .setName('search')
+    .setDescription('Search for notices')
+    .addStringOption(option =>
+      option.setName('query')
+        .setDescription('Keyword or notice ID to search for')
+        .setRequired(true)
+    )
+    .addStringOption(option =>
+      option.setName('faculty')
+        .setDescription('Optional faculty to limit search')
+        .setRequired(false)
+        .addChoices(
+          ...SOURCES.map(s => ({ name: SOURCE_METADATA[s].code, value: s }))
+        )
+    ),
+
+  new SlashCommandBuilder()
+    .setName('subscribe')
+    .setDescription('Subscribe this server to TU notices')
+    .setDefaultMemberPermissions(PermissionsBitField.Flags.ManageGuild)
+    .addStringOption(option =>
+      option.setName('faculty')
+        .setDescription('The faculty to subscribe to, or "all"')
+        .setRequired(true)
+        .addChoices(
+          { name: 'All Faculties', value: 'all' },
+          ...SOURCES.map(s => ({ name: SOURCE_METADATA[s].code, value: s }))
+        )
+    )
+    .addChannelOption(option =>
+      option.setName('channel')
+        .setDescription('Specific channel for these notices (optional)')
+        .addChannelTypes(ChannelType.GuildText)
+        .setRequired(false)
     )
 ];
 
@@ -167,6 +224,77 @@ export async function handleSlashCommand(interaction: ChatInputCommandInteractio
         );
 
         await interaction.editReply({ embeds: [embed] });
+        break;
+      }
+
+      case 'subscribe': {
+        if (!interaction.guild) {
+          await interaction.reply({ embeds: [createErrorEmbed('Server Only', 'This command can only be used in a server.')], ephemeral: true });
+          return;
+        }
+
+        const rawInput = interaction.options.getString('faculty', true);
+        const channelOpt = interaction.options.getChannel('channel');
+        const channelId = channelOpt?.id;
+
+        await interaction.deferReply();
+
+        const guildData = await guildRepository.getGuild(interaction.guild.id);
+        const channelReminder = channelId
+          ? `\n\n📡 Notifications for this subscription will be delivered to <#${channelId}>.`
+          : !guildData?.notification_channel_id
+          ? `\n\n⚠️ **Action Required:** No notification channel is set for this server yet. Please run \`/channel\` in your desired announcement channel to receive updates!`
+          : `\n\n📡 Notifications will be delivered to the default channel <#${guildData.notification_channel_id}>.`;
+
+        if (rawInput === 'all') {
+          const { added, alreadyExisted } = await subscriptionRepository.subscribeAll(interaction.guild.id, channelId);
+          if (added.length === 0) {
+            await interaction.editReply({
+              embeds: [
+                createWarningEmbed(
+                  'Already Subscribed',
+                  `⚠️ This server is already subscribed to all **${alreadyExisted.length}** supported TU faculties.${channelReminder}`
+                )
+              ]
+            });
+            return;
+          }
+
+          const addedList = added.map((s) => `• **${SOURCE_METADATA[s as keyof typeof SOURCE_METADATA].code}** (${SOURCE_METADATA[s as keyof typeof SOURCE_METADATA].name})`).join('\n');
+          await interaction.editReply({
+            embeds: [
+              createSuccessEmbed(
+                'Subscribed to All TU Faculties',
+                `🎉 This server has been subscribed to all **${SOURCES.length}** official TU faculties!\n\n**Subscribed Institutes & Faculties:**\n${addedList}${channelReminder}`
+              )
+            ]
+          });
+          return;
+        }
+
+        const meta = getFacultyMeta(rawInput)!;
+        const result = await subscriptionRepository.addSubscription(interaction.guild.id, rawInput, channelId);
+
+        if (result.alreadyExists) {
+          await interaction.editReply({
+            embeds: [
+              createWarningEmbed(
+                'Already Subscribed',
+                `⚠️ This server is already subscribed to **${meta.code}** (${meta.name}).${channelReminder}`
+              )
+            ]
+          });
+          return;
+        }
+
+        await interaction.editReply({
+          embeds: [
+            createSuccessEmbed(
+              `Subscribed to ${meta.code}`,
+              `✅ Successfully subscribed to **${meta.code} — ${meta.name}**.\n\nNew notices published by ${meta.code} will be posted automatically.${channelReminder}`
+            )
+          ]
+        });
         break;
       }
     }
