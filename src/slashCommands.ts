@@ -226,6 +226,138 @@ export const slashCommandsDefinitions = [
           { name: 'All Faculties', value: 'all' },
           ...SOURCES.map(s => ({ name: SOURCE_METADATA[s].code, value: s }))
         )
+    ),
+
+  new SlashCommandBuilder()
+    .setName('help')
+    .setDescription('Show help information about TU Notifier'),
+
+  new SlashCommandBuilder()
+    .setName('faculties')
+    .setDescription('List all supported TU faculties and sources'),
+
+  new SlashCommandBuilder()
+    .setName('latest')
+    .setDescription('Fetch the latest notice for a specific faculty')
+    .addStringOption(option =>
+      option.setName('faculty')
+        .setDescription('The faculty to check')
+        .setRequired(true)
+        .addChoices(
+          ...SOURCES.map(s => ({ name: SOURCE_METADATA[s].code, value: s }))
+        )
+    ),
+
+  new SlashCommandBuilder()
+    .setName('search')
+    .setDescription('Search for notices')
+    .addStringOption(option =>
+      option.setName('query')
+        .setDescription('Keyword or notice ID to search for')
+        .setRequired(true)
+    )
+    .addStringOption(option =>
+      option.setName('faculty')
+        .setDescription('Optional faculty to limit search')
+        .setRequired(false)
+        .addChoices(
+          ...SOURCES.map(s => ({ name: SOURCE_METADATA[s].code, value: s }))
+        )
+    ),
+
+  new SlashCommandBuilder()
+    .setName('subscribe')
+    .setDescription('Subscribe this server to TU notices')
+    .setDefaultMemberPermissions(PermissionsBitField.Flags.ManageGuild)
+    .addStringOption(option =>
+      option.setName('faculty')
+        .setDescription('The faculty to subscribe to, or "all"')
+        .setRequired(true)
+        .addChoices(
+          { name: 'All Faculties', value: 'all' },
+          ...SOURCES.map(s => ({ name: SOURCE_METADATA[s].code, value: s }))
+        )
+    )
+    .addChannelOption(option =>
+      option.setName('channel')
+        .setDescription('Specific channel for these notices (optional)')
+        .addChannelTypes(ChannelType.GuildText)
+        .setRequired(false)
+    ),
+
+  new SlashCommandBuilder()
+    .setName('unsubscribe')
+    .setDescription('Unsubscribe this server from TU notices')
+    .setDefaultMemberPermissions(PermissionsBitField.Flags.ManageGuild)
+    .addStringOption(option =>
+      option.setName('faculty')
+        .setDescription('The faculty to unsubscribe from, or "all"')
+        .setRequired(true)
+        .addChoices(
+          { name: 'All Faculties', value: 'all' },
+          ...SOURCES.map(s => ({ name: SOURCE_METADATA[s].code, value: s }))
+        )
+    ),
+
+  new SlashCommandBuilder()
+    .setName('subscriptions')
+    .setDescription('List all active subscriptions for this server'),
+
+  new SlashCommandBuilder()
+    .setName('help')
+    .setDescription('Show help information about TU Notifier'),
+
+  new SlashCommandBuilder()
+    .setName('faculties')
+    .setDescription('List all supported TU faculties and sources'),
+
+  new SlashCommandBuilder()
+    .setName('latest')
+    .setDescription('Fetch the latest notice for a specific faculty')
+    .addStringOption(option =>
+      option.setName('faculty')
+        .setDescription('The faculty to check')
+        .setRequired(true)
+        .addChoices(
+          ...SOURCES.map(s => ({ name: SOURCE_METADATA[s].code, value: s }))
+        )
+    ),
+
+  new SlashCommandBuilder()
+    .setName('search')
+    .setDescription('Search for notices')
+    .addStringOption(option =>
+      option.setName('query')
+        .setDescription('Keyword or notice ID to search for')
+        .setRequired(true)
+    )
+    .addStringOption(option =>
+      option.setName('faculty')
+        .setDescription('Optional faculty to limit search')
+        .setRequired(false)
+        .addChoices(
+          ...SOURCES.map(s => ({ name: SOURCE_METADATA[s].code, value: s }))
+        )
+    ),
+
+  new SlashCommandBuilder()
+    .setName('subscribe')
+    .setDescription('Subscribe this server to TU notices')
+    .setDefaultMemberPermissions(PermissionsBitField.Flags.ManageGuild)
+    .addStringOption(option =>
+      option.setName('faculty')
+        .setDescription('The faculty to subscribe to, or "all"')
+        .setRequired(true)
+        .addChoices(
+          { name: 'All Faculties', value: 'all' },
+          ...SOURCES.map(s => ({ name: SOURCE_METADATA[s].code, value: s }))
+        )
+    )
+    .addChannelOption(option =>
+      option.setName('channel')
+        .setDescription('Specific channel for these notices (optional)')
+        .addChannelTypes(ChannelType.GuildText)
+        .setRequired(false)
     )
 ];
 
@@ -404,6 +536,66 @@ export async function handleSlashCommand(interaction: ChatInputCommandInteractio
 
         await interaction.editReply({
           embeds: [createSuccessEmbed(`Unsubscribed from ${meta.code}`, `✅ Successfully unsubscribed from **${meta.code}**.`)]
+        });
+        break;
+      }
+
+      case 'subscriptions': {
+        if (!interaction.guild) {
+          await interaction.reply({ embeds: [createErrorEmbed('Server Only', 'This command can only be used in a server.')], ephemeral: true });
+          return;
+        }
+        
+        await interaction.deferReply();
+
+        const subscriptions = await subscriptionRepository.getGuildSubscriptions(interaction.guild.id);
+        const guildData = await guildRepository.getGuild(interaction.guild.id);
+
+        let channelText = '⚠️ *Not configured yet* (Run `/channel` to configure)';
+        if (guildData?.notification_channel_id) {
+          channelText = `<#${guildData.notification_channel_id}>`;
+        }
+
+        const embed = createSubscriptionsEmbed(interaction.guild.name, subscriptions, channelText);
+        await interaction.editReply({ embeds: [embed] });
+        break;
+      }
+
+      case 'channel': {
+        if (!interaction.guild) {
+          await interaction.reply({ embeds: [createErrorEmbed('Server Only', 'This command can only be used in a server.')], ephemeral: true });
+          return;
+        }
+        
+        const channelOpt = interaction.options.getChannel('channel', true) as TextChannel;
+        const facultyOpt = interaction.options.getString('faculty');
+        
+        await interaction.deferReply();
+
+        if (interaction.guild.members.me) {
+          const perms = channelOpt.permissionsFor(interaction.guild.members.me);
+          if (perms && !perms.has([PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.EmbedLinks])) {
+            await interaction.editReply({
+              embeds: [createWarningEmbed('Missing Bot Permissions', `I need **View Channel**, **Send Messages**, and **Embed Links** permissions in ${channelOpt} to post notifications properly.`)]
+            });
+            return;
+          }
+        }
+        
+        const channelName = channelOpt.name ? `#${channelOpt.name}` : channelOpt.id;
+
+        if (facultyOpt) {
+          const meta = getFacultyMeta(facultyOpt)!;
+          await subscriptionRepository.addSubscription(interaction.guild.id, facultyOpt, channelOpt.id);
+          await interaction.editReply({
+            embeds: [createSuccessEmbed(`Notification Channel Set for ${meta.code}`, `✅ Notifications for **${meta.code} — ${meta.name}** will now be routed specifically to **${channelName}** (<#${channelOpt.id}>).`)]
+          });
+          return;
+        }
+
+        await guildRepository.setNotificationChannel(interaction.guild.id, channelOpt.id);
+        await interaction.editReply({
+          embeds: [createSuccessEmbed('Default Notification Channel Configured', `✅ Default TU notifications will now be sent to **${channelName}** (<#${channelOpt.id}>).\n\nMake sure you have subscribed to at least one faculty with \`/subscribe\`!`)]
         });
         break;
       }
