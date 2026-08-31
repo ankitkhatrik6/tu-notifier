@@ -155,6 +155,77 @@ export const slashCommandsDefinitions = [
         .setDescription('Specific channel for these notices (optional)')
         .addChannelTypes(ChannelType.GuildText)
         .setRequired(false)
+    ),
+
+  new SlashCommandBuilder()
+    .setName('help')
+    .setDescription('Show help information about TU Notifier'),
+
+  new SlashCommandBuilder()
+    .setName('faculties')
+    .setDescription('List all supported TU faculties and sources'),
+
+  new SlashCommandBuilder()
+    .setName('latest')
+    .setDescription('Fetch the latest notice for a specific faculty')
+    .addStringOption(option =>
+      option.setName('faculty')
+        .setDescription('The faculty to check')
+        .setRequired(true)
+        .addChoices(
+          ...SOURCES.map(s => ({ name: SOURCE_METADATA[s].code, value: s }))
+        )
+    ),
+
+  new SlashCommandBuilder()
+    .setName('search')
+    .setDescription('Search for notices')
+    .addStringOption(option =>
+      option.setName('query')
+        .setDescription('Keyword or notice ID to search for')
+        .setRequired(true)
+    )
+    .addStringOption(option =>
+      option.setName('faculty')
+        .setDescription('Optional faculty to limit search')
+        .setRequired(false)
+        .addChoices(
+          ...SOURCES.map(s => ({ name: SOURCE_METADATA[s].code, value: s }))
+        )
+    ),
+
+  new SlashCommandBuilder()
+    .setName('subscribe')
+    .setDescription('Subscribe this server to TU notices')
+    .setDefaultMemberPermissions(PermissionsBitField.Flags.ManageGuild)
+    .addStringOption(option =>
+      option.setName('faculty')
+        .setDescription('The faculty to subscribe to, or "all"')
+        .setRequired(true)
+        .addChoices(
+          { name: 'All Faculties', value: 'all' },
+          ...SOURCES.map(s => ({ name: SOURCE_METADATA[s].code, value: s }))
+        )
+    )
+    .addChannelOption(option =>
+      option.setName('channel')
+        .setDescription('Specific channel for these notices (optional)')
+        .addChannelTypes(ChannelType.GuildText)
+        .setRequired(false)
+    ),
+
+  new SlashCommandBuilder()
+    .setName('unsubscribe')
+    .setDescription('Unsubscribe this server from TU notices')
+    .setDefaultMemberPermissions(PermissionsBitField.Flags.ManageGuild)
+    .addStringOption(option =>
+      option.setName('faculty')
+        .setDescription('The faculty to unsubscribe from, or "all"')
+        .setRequired(true)
+        .addChoices(
+          { name: 'All Faculties', value: 'all' },
+          ...SOURCES.map(s => ({ name: SOURCE_METADATA[s].code, value: s }))
+        )
     )
 ];
 
@@ -294,6 +365,45 @@ export async function handleSlashCommand(interaction: ChatInputCommandInteractio
               `✅ Successfully subscribed to **${meta.code} — ${meta.name}**.\n\nNew notices published by ${meta.code} will be posted automatically.${channelReminder}`
             )
           ]
+        });
+        break;
+      }
+
+      case 'unsubscribe': {
+        if (!interaction.guild) {
+          await interaction.reply({ embeds: [createErrorEmbed('Server Only', 'This command can only be used in a server.')], ephemeral: true });
+          return;
+        }
+        
+        const rawInput = interaction.options.getString('faculty', true);
+        
+        await interaction.deferReply();
+
+        if (rawInput === 'all') {
+          const { removedCount } = await subscriptionRepository.unsubscribeAll(interaction.guild.id);
+          if (removedCount === 0) {
+            await interaction.editReply({
+              embeds: [createWarningEmbed('Not Subscribed', '⚠️ This server is not subscribed to any TU faculties.')]
+            });
+            return;
+          }
+          await interaction.editReply({
+            embeds: [createSuccessEmbed('Unsubscribed from All', `✅ Successfully unsubscribed from all **${removedCount}** TU faculties.`)]
+          });
+          return;
+        }
+
+        const meta = getFacultyMeta(rawInput)!;
+        const { removed } = await subscriptionRepository.removeSubscription(interaction.guild.id, rawInput);
+        if (!removed) {
+          await interaction.editReply({
+            embeds: [createWarningEmbed('Not Subscribed', `⚠️ This server is not subscribed to **${meta.code}**.`)]
+          });
+          return;
+        }
+
+        await interaction.editReply({
+          embeds: [createSuccessEmbed(`Unsubscribed from ${meta.code}`, `✅ Successfully unsubscribed from **${meta.code}**.`)]
         });
         break;
       }
